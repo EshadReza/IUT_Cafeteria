@@ -575,7 +575,7 @@
     <div class="chaos-grid" id="chaosGrid"></div>
     <div class="divider"></div>
     <button class="btn btn-ghost btn-sm" onclick="resetAllStock()">🔄 RESET ALL STOCK TO 100</button>
-    <button class="btn btn-ghost btn-sm" style="margin-left:8px" onclick="refreshAdmin()">↻ REFRESH METRICS</button>
+    <button id="refreshBtn" class="btn btn-ghost btn-sm" style="margin-left:8px" onclick="manualRefresh()">↻ REFRESH METRICS</button>
   </div>
 </div>
 
@@ -873,31 +873,40 @@ async function refreshHealth() {
 }
 
 async function refreshMetrics() {
+  const [gwRes, notifRes] = await Promise.all([
+    fetch(`${API.gateway}/metrics`).then(r => r.json()).catch(() => null),
+    fetch(`${API.notif}/metrics`).then(r => r.json()).catch(() => null),
+  ]);
+
+  if (gwRes) {
+    document.getElementById('m-totalOrders').textContent = gwRes.totalOrders ?? '—';
+    document.getElementById('m-failedOrders').textContent = gwRes.failedOrders ?? '—';
+    document.getElementById('m-avgLatency').textContent = gwRes.avgLatencyMs ?? '—';
+    document.getElementById('m-avgLatency30').textContent = gwRes.avgLatency30sMs ?? '—';
+
+    const alertEl = document.getElementById('latencyAlert');
+    alertEl.className = gwRes.alertHighLatency ? 'alert-banner show' : 'alert-banner';
+
+    const m30 = gwRes.avgLatency30sMs || 0;
+    const latColor = m30 > 1000 ? 'red' : m30 > 500 ? 'yellow' : 'green';
+    document.getElementById('m-avgLatency30').className = `metric-value ${latColor}`;
+  }
+  if (notifRes) {
+    document.getElementById('m-notifications').textContent = notifRes.totalNotifications ?? '—';
+    document.getElementById('m-connections').textContent = notifRes.activeConnections ?? '—';
+  }
+}
+
+async function manualRefresh() {
+  const btn = document.getElementById('refreshBtn');
+  btn.textContent = '↻ REFRESHING...';
+  btn.disabled = true;
   try {
-    const [gwRes, notifRes] = await Promise.all([
-      fetch(`${API.gateway}/metrics`).then(r => r.json()).catch(() => null),
-      fetch(`${API.notif}/metrics`).then(r => r.json()).catch(() => null),
-    ]);
-
-    if (gwRes) {
-      document.getElementById('m-totalOrders').textContent = gwRes.totalOrders ?? '—';
-      document.getElementById('m-failedOrders').textContent = gwRes.failedOrders ?? '—';
-      document.getElementById('m-avgLatency').textContent = gwRes.avgLatencyMs ?? '—';
-      document.getElementById('m-avgLatency30').textContent = gwRes.avgLatency30sMs ?? '—';
-
-      // BONUS: Latency alert
-      const alertEl = document.getElementById('latencyAlert');
-      alertEl.className = gwRes.alertHighLatency ? 'alert-banner show' : 'alert-banner';
-
-      const m30 = gwRes.avgLatency30sMs || 0;
-      const latColor = m30 > 1000 ? 'red' : m30 > 500 ? 'yellow' : 'green';
-      document.getElementById('m-avgLatency30').className = `metric-value ${latColor}`;
-    }
-    if (notifRes) {
-      document.getElementById('m-notifications').textContent = notifRes.totalNotifications ?? '—';
-      document.getElementById('m-connections').textContent = notifRes.activeConnections ?? '—';
-    }
-  } catch {}
+    await refreshAdmin();
+  } finally {
+    btn.textContent = '↻ REFRESH METRICS';
+    btn.disabled = false;
+  }
 }
 
 function startAdminPolling() {
