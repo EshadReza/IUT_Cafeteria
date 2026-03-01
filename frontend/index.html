@@ -927,11 +927,14 @@ function killService(name, url) {
 
 async function resetAllStock() {
   try {
-    await fetch(`${API.stock}/stock/reset-all`, { method: 'POST' });
+    const res = await fetch(`${API.stock}/stock/reset-all`, { method: 'POST' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
     await loadMenu();
     addLog('🔄 All stock reset to 100 units');
+    alert('✅ Stock reset to 100 units for all items!');
   } catch (err) {
     addLog('❌ Stock reset failed: ' + err.message);
+    alert('❌ Stock reset failed: ' + err.message);
   }
 }
 

@@ -60,6 +60,18 @@ app.get('/stock', async (req, res) => {
   }
 });
 
+app.post('/stock/reset-all', async (req, res) => {
+  try {
+    const r = getRedis();
+    for (const id of Object.keys(MENU_ITEMS)) {
+      await r.set(`stock:${id}`, 100);
+    }
+    res.json({ success: true, message: 'All stock reset to 100' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/stock/:itemId', async (req, res) => {
   try {
     const r = getRedis();
@@ -128,18 +140,6 @@ app.post('/stock/:itemId/reset', async (req, res) => {
     if (!MENU_ITEMS[itemId]) return res.status(404).json({ error: 'Item not found' });
     await r.set(`stock:${itemId}`, quantity);
     res.json({ success: true, itemId, quantity });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.post('/stock/reset-all', async (req, res) => {
-  try {
-    const r = getRedis();
-    for (const id of Object.keys(MENU_ITEMS)) {
-      await r.set(`stock:${id}`, 100);
-    }
-    res.json({ success: true, message: 'All stock reset to 100' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

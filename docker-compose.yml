@@ -1,5 +1,3 @@
-version: '3.9'
-
 networks:
   cafeteria-net:
     driver: bridge
@@ -126,11 +124,11 @@ services:
       retries: 5
 
   frontend:
-    build: ./frontend
-    networks: [cafeteria-net]
-    ports:
-      - "80:80"
-    depends_on:
-      - order-gateway
-      - identity-provider
-      - notification-hub
+      build: ./frontend
+      networks: [cafeteria-net]
+      ports:
+        - "80:80"
+      depends_on:
+        - order-gateway
+        - identity-provider
+        - notification-hub
