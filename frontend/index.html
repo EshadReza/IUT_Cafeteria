@@ -1,0 +1,944 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IUT Cafeteria — Iftar Rush</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;600&display=swap');
+
+  :root {
+    --bg: #0a0a0f;
+    --surface: #12121a;
+    --border: #1e1e2e;
+    --accent: #ff6b2b;
+    --accent2: #ffb347;
+    --green: #2dff7f;
+    --red: #ff2d5a;
+    --yellow: #ffd700;
+    --text: #e8e8f0;
+    --muted: #5a5a7a;
+    --glow: 0 0 20px rgba(255, 107, 43, 0.3);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    min-height: 100vh;
+    background-image: 
+      radial-gradient(ellipse at 20% 20%, rgba(255, 107, 43, 0.05) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 80%, rgba(255, 179, 71, 0.03) 0%, transparent 50%);
+  }
+
+  /* GRID BG */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: linear-gradient(rgba(255,107,43,0.03) 1px, transparent 1px),
+                      linear-gradient(90deg, rgba(255,107,43,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .app { position: relative; z-index: 1; }
+
+  /* NAV */
+  nav {
+    border-bottom: 1px solid var(--border);
+    padding: 16px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: rgba(10,10,15,0.8);
+    backdrop-filter: blur(20px);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .logo {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 28px;
+    letter-spacing: 3px;
+    color: var(--accent);
+    text-shadow: var(--glow);
+  }
+
+  .logo span { color: var(--accent2); }
+
+  .nav-status {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 8px var(--green);
+    animation: pulse 2s infinite;
+  }
+  .dot.offline { background: var(--red); box-shadow: 0 0 8px var(--red); animation: none; }
+
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  /* TABS */
+  .tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    padding: 0 32px;
+    background: var(--surface);
+  }
+
+  .tab {
+    padding: 14px 24px;
+    cursor: pointer;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    color: var(--muted);
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .tab:hover:not(.active) { color: var(--text); }
+
+  /* CONTENT AREA */
+  .view { display: none; padding: 32px; max-width: 1200px; margin: 0 auto; }
+  .view.active { display: block; }
+
+  /* CARDS */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 24px;
+    margin-bottom: 24px;
+  }
+
+  .card-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 20px;
+    letter-spacing: 2px;
+    color: var(--accent);
+    margin-bottom: 16px;
+  }
+
+  /* LOGIN */
+  .login-wrap {
+    max-width: 400px;
+    margin: 48px auto;
+  }
+
+  .login-header {
+    text-align: center;
+    margin-bottom: 32px;
+  }
+
+  .login-header h1 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 56px;
+    letter-spacing: 4px;
+    line-height: 1;
+    color: var(--accent);
+    text-shadow: var(--glow);
+  }
+
+  .login-header p {
+    color: var(--muted);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 2px;
+    margin-top: 8px;
+  }
+
+  .field { margin-bottom: 16px; }
+  .field label { display: block; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--muted); letter-spacing: 1px; margin-bottom: 6px; text-transform: uppercase; }
+  .field input {
+    width: 100%;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 12px 14px;
+    color: var(--text);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 14px;
+    transition: border-color 0.2s;
+    outline: none;
+  }
+  .field input:focus { border-color: var(--accent); }
+
+  .hint {
+    background: rgba(255,107,43,0.06);
+    border: 1px solid rgba(255,107,43,0.2);
+    border-radius: 4px;
+    padding: 10px 14px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    margin-bottom: 20px;
+    line-height: 1.6;
+  }
+
+  /* BUTTONS */
+  .btn {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    transition: all 0.2s;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: #000;
+    font-weight: 600;
+    width: 100%;
+    padding: 14px;
+  }
+  .btn-primary:hover { background: var(--accent2); box-shadow: var(--glow); }
+  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .btn-ghost {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+  }
+  .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+
+  .btn-danger { background: var(--red); color: #fff; }
+  .btn-sm { padding: 6px 12px; font-size: 11px; }
+
+  /* ALERT */
+  .alert {
+    padding: 12px 16px;
+    border-radius: 4px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    margin-bottom: 16px;
+    display: none;
+  }
+  .alert.show { display: block; }
+  .alert-error { background: rgba(255,45,90,0.1); border: 1px solid rgba(255,45,90,0.3); color: var(--red); }
+  .alert-success { background: rgba(45,255,127,0.1); border: 1px solid rgba(45,255,127,0.3); color: var(--green); }
+
+  /* MENU GRID */
+  .menu-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  .menu-item {
+    background: rgba(255,255,255,0.02);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+  }
+  .menu-item:hover { border-color: var(--accent); background: rgba(255,107,43,0.05); }
+  .menu-item.selected { border-color: var(--accent); background: rgba(255,107,43,0.1); box-shadow: 0 0 12px rgba(255,107,43,0.2); }
+  .menu-item.out-of-stock { opacity: 0.4; cursor: not-allowed; }
+
+  .menu-emoji { font-size: 36px; margin-bottom: 8px; }
+  .menu-name { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+  .menu-price { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--accent2); }
+  .menu-stock { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--muted); margin-top: 4px; }
+
+  .qty-badge {
+    position: absolute;
+    top: 8px; right: 8px;
+    background: var(--accent);
+    color: #000;
+    border-radius: 50%;
+    width: 22px; height: 22px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+
+  /* ORDER TRACKER */
+  .order-tracker { padding: 16px 0; }
+  .tracker-steps { display: flex; justify-content: space-between; position: relative; margin-bottom: 24px; }
+  .tracker-steps::before {
+    content: '';
+    position: absolute;
+    top: 20px;
+    left: 0; right: 0;
+    height: 2px;
+    background: var(--border);
+  }
+  .tracker-progress {
+    position: absolute;
+    top: 20px; left: 0;
+    height: 2px;
+    background: var(--accent);
+    transition: width 0.6s ease;
+  }
+
+  .step { text-align: center; flex: 1; position: relative; }
+  .step-icon {
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    background: var(--surface);
+    border: 2px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 8px;
+    font-size: 16px;
+    transition: all 0.4s;
+    position: relative; z-index: 1;
+  }
+  .step.active .step-icon { border-color: var(--accent); box-shadow: 0 0 16px rgba(255,107,43,0.4); background: rgba(255,107,43,0.1); }
+  .step.done .step-icon { border-color: var(--green); background: rgba(45,255,127,0.1); box-shadow: 0 0 12px rgba(45,255,127,0.3); }
+  .step-label { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--muted); letter-spacing: 1px; }
+  .step.active .step-label, .step.done .step-label { color: var(--text); }
+
+  /* ADMIN DASHBOARD */
+  .health-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
+
+  .health-card {
+    background: rgba(255,255,255,0.02);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    transition: all 0.3s;
+  }
+  .health-card.ok { border-color: rgba(45,255,127,0.3); background: rgba(45,255,127,0.03); }
+  .health-card.down { border-color: rgba(255,45,90,0.3); background: rgba(255,45,90,0.05); animation: flash 1s infinite; }
+
+  @keyframes flash { 0%,100%{opacity:1} 50%{opacity:0.6} }
+
+  .health-indicator { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+  .health-indicator.ok { background: var(--green); box-shadow: 0 0 8px var(--green); }
+  .health-indicator.down { background: var(--red); box-shadow: 0 0 8px var(--red); }
+  .health-indicator.loading { background: var(--yellow); }
+
+  .health-info h4 { font-size: 13px; font-weight: 600; margin-bottom: 2px; }
+  .health-info p { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--muted); }
+
+  /* METRICS */
+  .metrics-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 16px; margin-bottom: 24px; }
+
+  .metric-card {
+    background: rgba(255,255,255,0.02);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    text-align: center;
+  }
+  .metric-value { font-family: 'Bebas Neue', sans-serif; font-size: 40px; color: var(--accent); line-height: 1; }
+  .metric-value.green { color: var(--green); }
+  .metric-value.red { color: var(--red); }
+  .metric-value.yellow { color: var(--yellow); }
+  .metric-label { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--muted); letter-spacing: 1px; margin-top: 4px; text-transform: uppercase; }
+
+  /* ALERT BANNER */
+  .alert-banner {
+    background: rgba(255,45,90,0.15);
+    border: 1px solid var(--red);
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: var(--red);
+    display: none;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 16px;
+    animation: flash 1s infinite;
+  }
+  .alert-banner.show { display: flex; }
+
+  /* CHAOS */
+  .chaos-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+  .chaos-btn {
+    padding: 12px;
+    background: rgba(255,45,90,0.05);
+    border: 1px solid rgba(255,45,90,0.2);
+    border-radius: 6px;
+    color: var(--red);
+    cursor: pointer;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    text-align: center;
+    transition: all 0.2s;
+  }
+  .chaos-btn:hover { background: rgba(255,45,90,0.15); border-color: var(--red); }
+
+  /* MONO TEXT */
+  .mono { font-family: 'IBM Plex Mono', monospace; }
+  .small { font-size: 12px; color: var(--muted); }
+  .tag { background: rgba(255,107,43,0.1); border: 1px solid rgba(255,107,43,0.2); color: var(--accent); padding: 2px 8px; border-radius: 3px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; }
+
+  /* BASKET */
+  .basket { background: rgba(255,107,43,0.03); border: 1px solid rgba(255,107,43,0.15); border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+  .basket-item { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
+  .basket-item:last-child { border: none; }
+  .basket-total { font-family: 'Bebas Neue', sans-serif; font-size: 24px; color: var(--accent2); text-align: right; margin-top: 8px; }
+
+  /* LOG */
+  .log-box { background: #080810; border: 1px solid var(--border); border-radius: 4px; padding: 12px; height: 120px; overflow-y: auto; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--muted); }
+  .log-entry { margin-bottom: 4px; }
+  .log-entry .ts { color: rgba(255,107,43,0.5); margin-right: 8px; }
+
+  /* USER INFO BAR */
+  .user-bar { display: flex; align-items: center; gap: 12px; padding: 10px 16px; background: rgba(45,255,127,0.05); border: 1px solid rgba(45,255,127,0.15); border-radius: 6px; margin-bottom: 24px; }
+  .user-bar .name { font-weight: 600; font-size: 14px; }
+  .user-bar .id { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--muted); }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  @media (max-width: 768px) { .grid-2 { grid-template-columns: 1fr; } }
+
+  .divider { height: 1px; background: var(--border); margin: 20px 0; }
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  /* Spinner */
+  .spin { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,107,43,0.3); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; margin-right: 6px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .latency-bar { height: 4px; border-radius: 2px; background: var(--border); margin-top: 6px; overflow: hidden; }
+  .latency-fill { height: 100%; border-radius: 2px; transition: width 0.5s, background 0.5s; }
+</style>
+</head>
+<body>
+<div class="app">
+
+<nav>
+  <div class="logo">IUT <span>CAFETERIA</span></div>
+  <div class="nav-status">
+    <div class="dot" id="sysStatus"></div>
+    <span id="sysStatusText" class="mono">SYSTEM ONLINE</span>
+    <span style="color: var(--border)">|</span>
+    <span id="navUser" class="mono" style="color: var(--accent)">NOT LOGGED IN</span>
+    <button class="btn btn-ghost btn-sm" id="logoutBtn" style="display:none" onclick="logout()">LOGOUT</button>
+  </div>
+</nav>
+
+<div class="tabs" id="tabs">
+  <div class="tab active" onclick="showTab('student')" id="tab-student">🧑‍🎓 Student</div>
+  <div class="tab" onclick="showTab('admin')" id="tab-admin">📊 Admin</div>
+</div>
+
+<!-- ═══════════════════════════════ STUDENT VIEW ═══════════════════════════════ -->
+<div class="view active" id="student-view">
+  
+  <!-- LOGIN -->
+  <div id="loginSection">
+    <div class="login-wrap">
+      <div class="login-header">
+        <h1>IFTAR RUSH</h1>
+        <p>IUT CAFETERIA ORDERING SYSTEM</p>
+      </div>
+      <div class="card">
+        <div class="hint">
+          Demo credentials:<br>
+          STU001 / STU002 / STU003 → password: <strong>iftar2024</strong><br>
+          admin → password: <strong>admin2024</strong>
+        </div>
+        <div id="loginAlert" class="alert alert-error"></div>
+        <div class="field"><label>Student ID</label><input type="text" id="studentId" placeholder="e.g. STU001" value="STU001"></div>
+        <div class="field"><label>Password</label><input type="password" id="password" placeholder="••••••••" value="iftar2024"></div>
+        <button class="btn btn-primary" id="loginBtn" onclick="login()">LOGIN TO ORDER</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ORDERING -->
+  <div id="orderSection" style="display:none">
+    <div id="userBar" class="user-bar">
+      <span>👤</span>
+      <div>
+        <div class="name" id="userName"></div>
+        <div class="id" id="userId"></div>
+      </div>
+      <div class="tag" id="userRole">STUDENT</div>
+    </div>
+
+    <div class="grid-2">
+      <div>
+        <div class="card">
+          <div class="card-title">📋 IFTAR MENU</div>
+          <div class="menu-grid" id="menuGrid">
+            <div style="color:var(--muted); font-family:'IBM Plex Mono',monospace; font-size:12px;">Loading menu...</div>
+          </div>
+          <div class="divider"></div>
+          <div class="card-title">🛒 YOUR ORDER</div>
+          <div class="basket" id="basket">
+            <div style="color:var(--muted); font-size:12px; font-family:'IBM Plex Mono',monospace;">Select items from the menu above</div>
+          </div>
+          <div id="orderAlert" class="alert"></div>
+          <button class="btn btn-primary" id="placeOrderBtn" onclick="placeOrder()" disabled>PLACE IFTAR ORDER</button>
+        </div>
+      </div>
+
+      <div>
+        <div class="card">
+          <div class="card-title">📍 ORDER TRACKER</div>
+          <div id="noOrderYet" style="color:var(--muted); font-family:'IBM Plex Mono',monospace; font-size:12px; padding:20px 0; text-align:center;">
+            Place an order to track it here
+          </div>
+          <div id="trackerSection" style="display:none">
+            <div style="font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--muted); margin-bottom:16px;">
+              ORDER: <span id="trackerOrderId" style="color:var(--accent)"></span>
+            </div>
+            <div class="order-tracker">
+              <div class="tracker-steps">
+                <div class="tracker-progress" id="trackerProgress" style="width:0%"></div>
+                <div class="step" id="step-PENDING">
+                  <div class="step-icon">⏳</div>
+                  <div class="step-label">PENDING</div>
+                </div>
+                <div class="step" id="step-STOCK_VERIFIED">
+                  <div class="step-icon">✅</div>
+                  <div class="step-label">STOCK OK</div>
+                </div>
+                <div class="step" id="step-IN_KITCHEN">
+                  <div class="step-icon">👨‍🍳</div>
+                  <div class="step-label">KITCHEN</div>
+                </div>
+                <div class="step" id="step-READY">
+                  <div class="step-icon">🎉</div>
+                  <div class="step-label">READY!</div>
+                </div>
+              </div>
+            </div>
+            <div id="statusMessage" style="text-align:center; font-family:'IBM Plex Mono',monospace; font-size:13px; color:var(--text); padding:12px; background:rgba(255,107,43,0.05); border-radius:4px; margin-top:8px;"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">📡 LIVE EVENTS LOG</div>
+          <div class="log-box" id="eventLog"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════ ADMIN VIEW ═══════════════════════════════ -->
+<div class="view" id="admin-view">
+  <div class="alert-banner" id="latencyAlert">
+    ⚠️ HIGH LATENCY ALERT — Gateway avg response >1s over last 30s
+  </div>
+
+  <div class="card">
+    <div class="card-title">💚 SERVICE HEALTH GRID</div>
+    <div class="health-grid" id="healthGrid">
+      <div style="color:var(--muted); font-size:12px;">Loading...</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">📊 LIVE METRICS</div>
+    <div class="metrics-grid" id="metricsGrid">
+      <div class="metric-card"><div class="metric-value" id="m-totalOrders">—</div><div class="metric-label">Total Orders</div></div>
+      <div class="metric-card"><div class="metric-value red" id="m-failedOrders">—</div><div class="metric-label">Failed Orders</div></div>
+      <div class="metric-card"><div class="metric-value yellow" id="m-avgLatency">—</div><div class="metric-label">Avg Latency (ms)</div></div>
+      <div class="metric-card"><div class="metric-value" id="m-avgLatency30">—</div><div class="metric-label">30s Window (ms)</div></div>
+      <div class="metric-card"><div class="metric-value green" id="m-notifications">—</div><div class="metric-label">Notifications</div></div>
+      <div class="metric-card"><div class="metric-value" id="m-connections">—</div><div class="metric-label">Active SSE Conn.</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">💥 CHAOS ENGINEERING</div>
+    <div style="font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--muted); margin-bottom:16px;">
+      Simulate service failures to observe system resilience. Services will attempt to restart automatically.
+    </div>
+    <div class="chaos-grid" id="chaosGrid"></div>
+    <div class="divider"></div>
+    <button class="btn btn-ghost btn-sm" onclick="resetAllStock()">🔄 RESET ALL STOCK TO 100</button>
+    <button class="btn btn-ghost btn-sm" style="margin-left:8px" onclick="refreshAdmin()">↻ REFRESH METRICS</button>
+  </div>
+</div>
+
+</div>
+
+<script>
+const API = {
+  auth: 'http://localhost:3001',
+  gateway: 'http://localhost:3002',
+  stock: 'http://localhost:3003',
+  kitchen: 'http://localhost:3004',
+  notif: 'http://localhost:3005',
+};
+
+let token = sessionStorage.getItem('token');
+let user = JSON.parse(sessionStorage.getItem('user') || 'null');
+let selectedItems = {};
+let menuData = {};
+let currentEventSource = null;
+let adminInterval = null;
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+window.onload = () => {
+  if (token && user) showOrderSection();
+  startAdminPolling();
+  updateNavUser();
+};
+
+function showTab(tab) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById(`${tab}-view`).classList.add('active');
+  document.getElementById(`tab-${tab}`).classList.add('active');
+  if (tab === 'admin') refreshAdmin();
+}
+
+function updateNavUser() {
+  const el = document.getElementById('navUser');
+  const lb = document.getElementById('logoutBtn');
+  if (user) { el.textContent = user.studentId; lb.style.display = ''; }
+  else { el.textContent = 'NOT LOGGED IN'; lb.style.display = 'none'; }
+}
+
+function logout() {
+  token = null; user = null;
+  sessionStorage.removeItem('token'); sessionStorage.removeItem('user');
+  if (currentEventSource) { currentEventSource.close(); currentEventSource = null; }
+  document.getElementById('loginSection').style.display = '';
+  document.getElementById('orderSection').style.display = 'none';
+  updateNavUser();
+}
+
+// ─── LOGIN ────────────────────────────────────────────────────────────────────
+async function login() {
+  const studentId = document.getElementById('studentId').value.trim();
+  const password = document.getElementById('password').value.trim();
+  const btn = document.getElementById('loginBtn');
+  const alert = document.getElementById('loginAlert');
+  alert.className = 'alert'; alert.textContent = '';
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin"></span>AUTHENTICATING...';
+
+  try {
+    const res = await fetch(`${API.auth}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ studentId, password }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Login failed');
+
+    token = data.token;
+    user = data.student;
+    sessionStorage.setItem('token', token);
+    sessionStorage.setItem('user', JSON.stringify(user));
+    updateNavUser();
+    showOrderSection();
+  } catch (err) {
+    alert.textContent = '⚠ ' + err.message;
+    alert.className = 'alert alert-error show';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'LOGIN TO ORDER';
+  }
+}
+
+async function showOrderSection() {
+  document.getElementById('loginSection').style.display = 'none';
+  document.getElementById('orderSection').style.display = '';
+  document.getElementById('userName').textContent = user.name;
+  document.getElementById('userId').textContent = user.studentId;
+  document.getElementById('userRole').textContent = user.role?.toUpperCase() || 'STUDENT';
+  await loadMenu();
+}
+
+// ─── MENU ─────────────────────────────────────────────────────────────────────
+async function loadMenu() {
+  try {
+    const res = await fetch(`${API.gateway}/stock`, { headers: { Authorization: `Bearer ${token}` } });
+    menuData = await res.json();
+    renderMenu();
+  } catch {
+    document.getElementById('menuGrid').innerHTML = '<div style="color:var(--red); font-size:12px; font-family:monospace;">Failed to load menu</div>';
+  }
+}
+
+function renderMenu() {
+  const grid = document.getElementById('menuGrid');
+  grid.innerHTML = '';
+  for (const [id, item] of Object.entries(menuData)) {
+    const qty = selectedItems[id] || 0;
+    const oos = item.quantity === 0;
+    const div = document.createElement('div');
+    div.className = `menu-item${qty > 0 ? ' selected' : ''}${oos ? ' out-of-stock' : ''}`;
+    div.onclick = () => { if (!oos) toggleItem(id, item); };
+    div.innerHTML = `
+      ${qty > 0 ? `<div class="qty-badge">${qty}</div>` : ''}
+      <div class="menu-emoji">${item.emoji}</div>
+      <div class="menu-name">${item.name}</div>
+      <div class="menu-price">৳${item.price}</div>
+      <div class="menu-stock">${oos ? '❌ OUT' : `${item.quantity} left`}</div>
+    `;
+    grid.appendChild(div);
+  }
+}
+
+function toggleItem(id, item) {
+  if (!selectedItems[id]) selectedItems[id] = 0;
+  selectedItems[id]++;
+  if (selectedItems[id] > Math.min(5, menuData[id]?.quantity || 0)) selectedItems[id] = 0;
+  if (selectedItems[id] === 0) delete selectedItems[id];
+  renderMenu();
+  renderBasket();
+}
+
+function renderBasket() {
+  const basket = document.getElementById('basket');
+  const orderBtn = document.getElementById('placeOrderBtn');
+
+  if (!Object.keys(selectedItems).length) {
+    basket.innerHTML = '<div style="color:var(--muted); font-size:12px; font-family:\'IBM Plex Mono\',monospace;">Select items from the menu above</div>';
+    orderBtn.disabled = true;
+    return;
+  }
+
+  let total = 0;
+  let html = '';
+  for (const [id, qty] of Object.entries(selectedItems)) {
+    const item = menuData[id];
+    const subtotal = item.price * qty;
+    total += subtotal;
+    html += `<div class="basket-item"><span>${item.emoji} ${item.name} ×${qty}</span><span class="mono">৳${subtotal}</span></div>`;
+  }
+  html += `<div class="basket-total">TOTAL: ৳${total}</div>`;
+  basket.innerHTML = html;
+  orderBtn.disabled = false;
+}
+
+// ─── PLACE ORDER ──────────────────────────────────────────────────────────────
+async function placeOrder() {
+  const btn = document.getElementById('placeOrderBtn');
+  const alert = document.getElementById('orderAlert');
+  alert.className = 'alert'; alert.textContent = '';
+
+  const items = Object.entries(selectedItems).map(([itemId, quantity]) => ({ itemId, quantity }));
+  const total = items.reduce((s, i) => s + (menuData[i.itemId]?.price || 0) * i.quantity, 0);
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin"></span>PLACING ORDER...';
+
+  try {
+    const res = await fetch(`${API.gateway}/orders`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ items, total }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Order failed');
+
+    // Success! Start tracking
+    alert.textContent = `✅ Order placed! ID: ${data.orderId}`;
+    alert.className = 'alert alert-success show';
+    selectedItems = {};
+    startTracking(data.orderId);
+    renderMenu();
+    renderBasket();
+    setTimeout(() => loadMenu(), 2000);
+  } catch (err) {
+    alert.textContent = '⚠ ' + err.message;
+    alert.className = 'alert alert-error show';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'PLACE IFTAR ORDER';
+  }
+}
+
+// ─── TRACKING ─────────────────────────────────────────────────────────────────
+const STATUS_ORDER = ['PENDING', 'STOCK_VERIFIED', 'IN_KITCHEN', 'READY'];
+const STATUS_PROGRESS = { 'PENDING': 8, 'STOCK_VERIFIED': 38, 'IN_KITCHEN': 70, 'READY': 100 };
+
+function startTracking(orderId) {
+  if (currentEventSource) currentEventSource.close();
+
+  document.getElementById('noOrderYet').style.display = 'none';
+  document.getElementById('trackerSection').style.display = '';
+  document.getElementById('trackerOrderId').textContent = orderId.slice(0, 8) + '...';
+
+  // Reset steps
+  STATUS_ORDER.forEach(s => {
+    const el = document.getElementById(`step-${s}`);
+    if (el) { el.className = 'step'; }
+  });
+  document.getElementById('trackerProgress').style.width = '0%';
+
+  currentEventSource = new EventSource(`${API.notif}/events/${orderId}`);
+  currentEventSource.onmessage = (e) => {
+    const data = JSON.parse(e.data);
+    updateTracker(data);
+    addLog(`[${data.status}] ${data.message}`);
+  };
+  currentEventSource.onerror = () => {
+    addLog('⚠ SSE connection error');
+  };
+}
+
+function updateTracker(data) {
+  const { status, message } = data;
+  document.getElementById('statusMessage').textContent = message || status;
+  document.getElementById('trackerProgress').style.width = (STATUS_PROGRESS[status] || 0) + '%';
+
+  const idx = STATUS_ORDER.indexOf(status);
+  STATUS_ORDER.forEach((s, i) => {
+    const el = document.getElementById(`step-${s}`);
+    if (!el) return;
+    if (i < idx) el.className = 'step done';
+    else if (i === idx) el.className = 'step active';
+    else el.className = 'step';
+  });
+
+  if (status === 'READY') {
+    document.getElementById('trackerProgress').style.background = 'var(--green)';
+    if (currentEventSource) { currentEventSource.close(); currentEventSource = null; }
+  }
+}
+
+function addLog(msg) {
+  const log = document.getElementById('eventLog');
+  const ts = new Date().toLocaleTimeString();
+  const div = document.createElement('div');
+  div.className = 'log-entry';
+  div.innerHTML = `<span class="ts">[${ts}]</span>${msg}`;
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+}
+
+// ─── ADMIN ────────────────────────────────────────────────────────────────────
+const SERVICES = [
+  { name: 'Identity Provider', key: 'identity', url: 'http://localhost:3001' },
+  { name: 'Order Gateway', key: 'gateway', url: 'http://localhost:3002' },
+  { name: 'Stock Service', key: 'stock', url: 'http://localhost:3003' },
+  { name: 'Kitchen Queue', key: 'kitchen', url: 'http://localhost:3004' },
+  { name: 'Notification Hub', key: 'notif', url: 'http://localhost:3005' },
+];
+
+async function refreshAdmin() {
+  await Promise.all([refreshHealth(), refreshMetrics()]);
+}
+
+async function refreshHealth() {
+  const grid = document.getElementById('healthGrid');
+  const statuses = await Promise.all(SERVICES.map(async s => {
+    try {
+      const r = await fetch(`${s.url}/health`, { signal: AbortSignal.timeout(2500) });
+      const data = await r.json();
+      return { ...s, status: r.ok ? 'ok' : 'down', detail: data };
+    } catch {
+      return { ...s, status: 'down', detail: null };
+    }
+  }));
+
+  const allOk = statuses.every(s => s.status === 'ok');
+  document.getElementById('sysStatus').className = `dot ${allOk ? '' : 'offline'}`;
+  document.getElementById('sysStatusText').textContent = allOk ? 'SYSTEM ONLINE' : 'DEGRADED';
+
+  grid.innerHTML = statuses.map(s => `
+    <div class="health-card ${s.status}">
+      <div class="health-indicator ${s.status}"></div>
+      <div class="health-info">
+        <h4>${s.name}</h4>
+        <p>${s.url.replace('http://localhost:', ':')} • ${s.status.toUpperCase()}</p>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function refreshMetrics() {
+  try {
+    const [gwRes, notifRes] = await Promise.all([
+      fetch(`${API.gateway}/metrics`).then(r => r.json()).catch(() => null),
+      fetch(`${API.notif}/metrics`).then(r => r.json()).catch(() => null),
+    ]);
+
+    if (gwRes) {
+      document.getElementById('m-totalOrders').textContent = gwRes.totalOrders ?? '—';
+      document.getElementById('m-failedOrders').textContent = gwRes.failedOrders ?? '—';
+      document.getElementById('m-avgLatency').textContent = gwRes.avgLatencyMs ?? '—';
+      document.getElementById('m-avgLatency30').textContent = gwRes.avgLatency30sMs ?? '—';
+
+      // BONUS: Latency alert
+      const alertEl = document.getElementById('latencyAlert');
+      alertEl.className = gwRes.alertHighLatency ? 'alert-banner show' : 'alert-banner';
+
+      const m30 = gwRes.avgLatency30sMs || 0;
+      const latColor = m30 > 1000 ? 'red' : m30 > 500 ? 'yellow' : 'green';
+      document.getElementById('m-avgLatency30').className = `metric-value ${latColor}`;
+    }
+    if (notifRes) {
+      document.getElementById('m-notifications').textContent = notifRes.totalNotifications ?? '—';
+      document.getElementById('m-connections').textContent = notifRes.activeConnections ?? '—';
+    }
+  } catch {}
+}
+
+function startAdminPolling() {
+  adminInterval = setInterval(refreshAdmin, 5000);
+  refreshAdmin();
+  renderChaos();
+}
+
+function renderChaos() {
+  const grid = document.getElementById('chaosGrid');
+  grid.innerHTML = SERVICES.map(s => `
+    <div class="chaos-btn" onclick="killService('${s.name}', '${s.url}')">
+      💀 KILL ${s.name.toUpperCase()}
+    </div>
+  `).join('');
+}
+
+function killService(name, url) {
+  // In a real deployment this would call a chaos endpoint or docker kill
+  // For demo: just show what would happen
+  const confirmed = confirm(`⚠️ CHAOS MODE\n\nThis simulates killing "${name}".\n\nIn production, this would:\n• Stop the container\n• Let you observe cascading failures\n• Watch health grid turn red\n• Test circuit breaker behavior\n\nClick OK to simulate the health state change.`);
+  if (confirmed) {
+    addLog(`💀 [CHAOS] ${name} killed by admin`);
+    refreshHealth();
+  }
+}
+
+async function resetAllStock() {
+  try {
+    await fetch(`${API.stock}/stock/reset-all`, { method: 'POST' });
+    await loadMenu();
+    addLog('🔄 All stock reset to 100 units');
+  } catch (err) {
+    addLog('❌ Stock reset failed: ' + err.message);
+  }
+}
+
+// Bind Enter key to login
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && document.getElementById('loginSection')?.style.display !== 'none') login();
+});
+</script>
+</body>
+</html>

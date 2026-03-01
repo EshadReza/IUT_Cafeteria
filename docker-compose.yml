@@ -1,0 +1,136 @@
+version: '3.9'
+
+networks:
+  cafeteria-net:
+    driver: bridge
+
+volumes:
+  redis-data:
+  rabbitmq-data:
+
+services:
+  redis:
+    image: redis:7-alpine
+    networks: [cafeteria-net]
+    volumes: [redis-data:/data]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  rabbitmq:
+    image: rabbitmq:3.12-management-alpine
+    networks: [cafeteria-net]
+    volumes: [rabbitmq-data:/var/lib/rabbitmq]
+    environment:
+      RABBITMQ_DEFAULT_USER: cafeteria
+      RABBITMQ_DEFAULT_PASS: iftar2024
+    ports:
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  identity-provider:
+    build: ./identity-provider
+    networks: [cafeteria-net]
+    environment:
+      JWT_SECRET: "iut-cafeteria-super-secret-key-2024"
+      PORT: "3001"
+    ports:
+      - "3001:3001"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  stock-service:
+    build: ./stock-service
+    networks: [cafeteria-net]
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      REDIS_URL: "redis://redis:6379"
+      PORT: "3003"
+    ports:
+      - "3003:3003"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3003/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  kitchen-queue:
+    build: ./kitchen-queue
+    networks: [cafeteria-net]
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      RABBITMQ_URL: "amqp://cafeteria:iftar2024@rabbitmq:5672"
+      NOTIFICATION_HUB_URL: "http://notification-hub:3005"
+      PORT: "3004"
+    ports:
+      - "3004:3004"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3004/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  notification-hub:
+    build: ./notification-hub
+    networks: [cafeteria-net]
+    environment:
+      PORT: "3005"
+    ports:
+      - "3005:3005"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3005/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  order-gateway:
+    build: ./order-gateway
+    networks: [cafeteria-net]
+    depends_on:
+      identity-provider:
+        condition: service_healthy
+      stock-service:
+        condition: service_healthy
+      kitchen-queue:
+        condition: service_healthy
+      notification-hub:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      JWT_SECRET: "iut-cafeteria-super-secret-key-2024"
+      REDIS_URL: "redis://redis:6379"
+      STOCK_SERVICE_URL: "http://stock-service:3003"
+      KITCHEN_QUEUE_URL: "http://kitchen-queue:3004"
+      NOTIFICATION_HUB_URL: "http://notification-hub:3005"
+      PORT: "3002"
+    ports:
+      - "3002:3002"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3002/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  frontend:
+    build: ./frontend
+    networks: [cafeteria-net]
+    ports:
+      - "80:80"
+    depends_on:
+      - order-gateway
+      - identity-provider
+      - notification-hub
