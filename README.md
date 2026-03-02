@@ -923,3 +923,8 @@ Then open `frontend/index.html` directly in your browser.
 | STU002 | iftar2024 | student |
 | STU003 | iftar2024 | student |
 | admin | admin2024 | admin |
+
+
+### AI Usage
+ChatGPT for helping to strategize
+Claude Code for Code Base
