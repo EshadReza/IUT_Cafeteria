@@ -125,6 +125,7 @@ services:
       timeout: 5s
       retries: 5
 
+
   frontend:
     build: ./frontend
     networks: [cafeteria-net]
@@ -134,3 +135,18 @@ services:
       - order-gateway
       - identity-provider
       - notification-hub
+
+  chaos-controller:
+    build: ./chaos-controller
+    networks: [cafeteria-net]
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      PORT: "3006"
+    ports:
+      - "3006:3006"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3006/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5

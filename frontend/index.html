@@ -588,6 +588,7 @@ const API = {
   stock: 'http://localhost:3003',
   kitchen: 'http://localhost:3004',
   notif: 'http://localhost:3005',
+  chaos: 'http://localhost:3006',
 };
 
 let token = sessionStorage.getItem('token');
@@ -839,6 +840,7 @@ const SERVICES = [
   { name: 'Stock Service', key: 'stock', url: 'http://localhost:3003' },
   { name: 'Kitchen Queue', key: 'kitchen', url: 'http://localhost:3004' },
   { name: 'Notification Hub', key: 'notif', url: 'http://localhost:3005' },
+  { name: 'Chaos Controller', key: 'chaos', url: 'http://localhost:3006' },
 ];
 
 async function refreshAdmin() {
@@ -910,27 +912,87 @@ async function manualRefresh() {
 }
 
 function startAdminPolling() {
-  adminInterval = setInterval(refreshAdmin, 5000);
+  adminInterval = setInterval(() => { refreshAdmin(); fetchChaosStatus(); }, 5000);
   refreshAdmin();
-  renderChaos();
+  fetchChaosStatus();
+}
+
+let containerStatuses = {};
+
+async function fetchChaosStatus() {
+  try {
+    const res = await fetch(`${API.chaos}/chaos/status`);
+    if (res.ok) {
+      containerStatuses = await res.json();
+      renderChaos();
+    }
+  } catch {
+    // chaos controller not reachable
+  }
 }
 
 function renderChaos() {
   const grid = document.getElementById('chaosGrid');
-  grid.innerHTML = SERVICES.map(s => `
-    <div class="chaos-btn" onclick="killService('${s.name}', '${s.url}')">
-      💀 KILL ${s.name.toUpperCase()}
-    </div>
-  `).join('');
+  const serviceKeys = {
+    'Identity Provider': 'identity-provider',
+    'Order Gateway': 'order-gateway',
+    'Stock Service': 'stock-service',
+    'Kitchen Queue': 'kitchen-queue',
+    'Notification Hub': 'notification-hub',
+  };
+
+  grid.innerHTML = Object.entries(serviceKeys).map(([label, key]) => {
+    const state = containerStatuses[key];
+    const isRunning = state === 'running';
+    const isUnknown = !state;
+    const stateLabel = isUnknown ? 'UNKNOWN' : state.toUpperCase();
+    const stateColor = isRunning ? 'var(--green)' : 'var(--red)';
+
+    return `
+      <div style="background:rgba(255,255,255,0.02); border:1px solid var(--border); border-radius:8px; padding:14px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+          <span style="font-size:13px; font-weight:600;">${label}</span>
+          <span style="font-family:'IBM Plex Mono',monospace; font-size:10px; color:${stateColor};">● ${stateLabel}</span>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button class="btn btn-danger btn-sm" style="flex:1" onclick="killService('${key}')" ${isRunning ? '' : 'disabled'}>
+            💀 KILL
+          </button>
+          <button class="btn btn-ghost btn-sm" style="flex:1; border-color:var(--green); color:var(--green);" onclick="reviveService('${key}')" ${!isRunning && !isUnknown ? '' : 'disabled'}>
+            ⚡ REVIVE
+          </button>
+        </div>
+      </div>
+    `;
+  }).join('');
 }
 
-function killService(name, url) {
-  // In a real deployment this would call a chaos endpoint or docker kill
-  // For demo: just show what would happen
-  const confirmed = confirm(`⚠️ CHAOS MODE\n\nThis simulates killing "${name}".\n\nIn production, this would:\n• Stop the container\n• Let you observe cascading failures\n• Watch health grid turn red\n• Test circuit breaker behavior\n\nClick OK to simulate the health state change.`);
-  if (confirmed) {
-    addLog(`💀 [CHAOS] ${name} killed by admin`);
-    refreshHealth();
+async function killService(serviceKey) {
+  if (!confirm(`⚠️ Kill "${serviceKey}"?\n\nThis stops the actual Docker container. Watch the health grid turn red.`)) return;
+  try {
+    const res = await fetch(`${API.chaos}/chaos/kill/${serviceKey}`, { method: 'POST' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    addLog(`💀 [CHAOS] ${serviceKey} killed (container: ${data.containerId})`);
+    await fetchChaosStatus();
+    await refreshHealth();
+  } catch (err) {
+    addLog(`❌ Kill failed: ${err.message}`);
+    alert(`Failed to kill ${serviceKey}: ${err.message}`);
+  }
+}
+
+async function reviveService(serviceKey) {
+  try {
+    const res = await fetch(`${API.chaos}/chaos/revive/${serviceKey}`, { method: 'POST' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    addLog(`⚡ [CHAOS] ${serviceKey} revived (container: ${data.containerId})`);
+    await fetchChaosStatus();
+    setTimeout(refreshHealth, 3000); // give it 3s to come back up
+  } catch (err) {
+    addLog(`❌ Revive failed: ${err.message}`);
+    alert(`Failed to revive ${serviceKey}: ${err.message}`);
   }
 }
 
